@@ -8,6 +8,101 @@ import type { IRegistration, StatsResult } from "@/types";
 import { formatMoney, timeAgo, getInitials } from "@/lib/utils";
 import Image from "next/image";
 
+/* ── Export helpers ── */
+function exportRows(registrations: IRegistration[]) {
+  return registrations.map((r) => ({
+    "Reg ID": r.regId,
+    "Name": r.name,
+    "Email": r.email,
+    "Phone": r.phone,
+    "NIC": r.nic,
+    "Country": r.country === "local" ? "Local" : "Foreign",
+    "Easels": r.guests,
+    "Tier": r.tier,
+    "Pay Method": r.payMethod,
+    "Pay Ref": r.payRef,
+    "Amount": r.amount,
+    "Currency": r.currency,
+    "Status": r.status,
+    "Ticket": r.ticket ?? "",
+    "Checked In": r.checkedIn ? "Yes" : "No",
+    "Checked In At": r.checkedInAt ? new Date(r.checkedInAt).toLocaleString() : "",
+    "Notes": r.notes,
+    "Registered At": new Date(r.createdAt).toLocaleString(),
+  }));
+}
+
+async function exportCSV(registrations: IRegistration[], filename: string) {
+  const rows = exportRows(registrations);
+  const headers = Object.keys(rows[0] || {});
+  const csv = [
+    headers.join(","),
+    ...rows.map((r) =>
+      headers.map((h) => {
+        const val = String((r as Record<string, unknown>)[h] ?? "").replace(/"/g, '""');
+        return `"${val}"`;
+      }).join(",")
+    ),
+  ].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function exportExcel(registrations: IRegistration[], filename: string) {
+  const { utils, writeFile } = await import("xlsx");
+  const rows = exportRows(registrations);
+  const ws = utils.json_to_sheet(rows);
+  const wb = utils.book_new();
+  utils.book_append_sheet(wb, ws, "Registrations");
+  writeFile(wb, filename);
+}
+
+async function exportPDF(registrations: IRegistration[], filename: string) {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+  doc.setFillColor(6, 16, 13);
+  doc.rect(0, 0, 297, 210, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(0, 229, 176);
+  doc.text("THE COZY CANVAS", 14, 18);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(180, 210, 200);
+  doc.text(`Attendee List · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}  ·  ${registrations.length} records`, 14, 25);
+
+  autoTable(doc, {
+    startY: 30,
+    head: [["Reg ID", "Name", "Email", "Phone", "Easels", "Amount", "Pay Method", "Status", "Ticket", "Checked In", "Registered"]],
+    body: registrations.map((r) => [
+      r.regId,
+      r.name,
+      r.email,
+      r.phone,
+      r.guests,
+      formatMoney(r.amount, r.currency),
+      r.payMethod,
+      r.status.toUpperCase(),
+      r.ticket ?? "—",
+      r.checkedIn ? "✓" : "—",
+      new Date(r.createdAt).toLocaleDateString("en-GB"),
+    ]),
+    styles: { fontSize: 7.5, cellPadding: 3, textColor: [245, 255, 249], fillColor: [12, 24, 20] },
+    headStyles: { fillColor: [13, 43, 33], textColor: [0, 229, 176], fontStyle: "bold", fontSize: 7.5 },
+    alternateRowStyles: { fillColor: [8, 18, 14] },
+    tableLineWidth: 0.1,
+  });
+
+  doc.save(filename);
+}
+
 /* ── Stats cards ── */
 function StatCard({
   label,
@@ -623,6 +718,7 @@ export default function RegistrationsPage() {
 
   const filtered = useMemo(() => {
     return registrations.filter((r) => {
+      if (filter === "checked-in") return r.checkedIn;
       if (filter !== "all" && r.status !== filter) return false;
       if (q.trim()) {
         const hay = `${r.name} ${r.email} ${r.regId} ${r.payRef}`.toLowerCase();
@@ -639,6 +735,7 @@ export default function RegistrationsPage() {
     ["pending", "Pending", stats.pending],
     ["approved", "Approved", stats.approved],
     ["rejected", "Rejected", stats.rejected],
+    ["checked-in", "Checked in", stats.checkedIn],
   ] as const;
 
   if (loading) {
@@ -664,6 +761,12 @@ export default function RegistrationsPage() {
         <StatCard label="Registrations" value={stats.total} sub={`${stats.pending} awaiting review`} />
         <StatCard label="Pending" value={stats.pending} sub="need a decision" accent={stats.pending > 0} />
         <StatCard label="Approved" value={stats.approved} sub={`${stats.seats} / ${stats.seatCap} seats filled`} accent />
+        <StatCard
+          label="Attended"
+          value={stats.checkedIn}
+          sub={`${stats.approved > 0 ? Math.round((stats.checkedIn / stats.approved) * 100) : 0}% of approved`}
+          accent={stats.checkedIn > 0}
+        />
         <StatCard
           label="Revenue"
           value={`LKR ${(stats.revenueLKR / 1000).toFixed(1)}k`}
@@ -762,7 +865,7 @@ export default function RegistrationsPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1.6fr 1fr 0.7fr 0.8fr 1fr auto",
+            gridTemplateColumns: "1.6fr 1fr 0.7fr 0.8fr 1fr 0.6fr auto",
             gap: "1rem",
             padding: "0.9rem 1.3rem",
             borderBottom: "1px solid var(--border)",
@@ -777,6 +880,7 @@ export default function RegistrationsPage() {
           <span>Easels</span>
           <span>Amount</span>
           <span>Status</span>
+          <span>Attended</span>
           <span />
         </div>
 
@@ -799,7 +903,7 @@ export default function RegistrationsPage() {
             onClick={() => setOpenId(r.regId)}
             style={{
               display: "grid",
-              gridTemplateColumns: "1.6fr 1fr 0.7fr 0.8fr 1fr auto",
+              gridTemplateColumns: "1.6fr 1fr 0.7fr 0.8fr 1fr 0.6fr auto",
               gap: "1rem",
               padding: "1rem 1.3rem",
               borderBottom: "1px solid var(--border)",
@@ -858,6 +962,28 @@ export default function RegistrationsPage() {
             <span>
               <StatusPill status={r.status} />
             </span>
+            <span>
+              {r.checkedIn ? (
+                <span
+                  title={`Checked in${r.checkedInAt ? " · " + new Date(r.checkedInAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                    background: "rgba(var(--accent-rgb),0.12)",
+                    color: "var(--accent)",
+                    borderRadius: 100,
+                    padding: "0.2rem 0.6rem",
+                    fontSize: "0.7rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  ✓ In
+                </span>
+              ) : (
+                <span style={{ color: "var(--faint)", fontSize: "0.76rem" }}>—</span>
+              )}
+            </span>
             <span style={{ color: "var(--faint)", fontSize: "1.1rem" }}>›</span>
           </div>
         ))}
@@ -876,6 +1002,38 @@ export default function RegistrationsPage() {
         <p style={{ fontSize: "0.72rem", color: "var(--faint)" }}>
           Showing {filtered.length} of {stats.total} registrations
         </p>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            className="btn btn-sm btn-ghost"
+            onClick={() => {
+              const ts = new Date().toISOString().slice(0, 10);
+              exportCSV(filtered, `cozy-canvas-attendees-${ts}.csv`);
+            }}
+            title="Export CSV"
+          >
+            ↓ CSV
+          </button>
+          <button
+            className="btn btn-sm btn-ghost"
+            onClick={() => {
+              const ts = new Date().toISOString().slice(0, 10);
+              exportExcel(filtered, `cozy-canvas-attendees-${ts}.xlsx`);
+            }}
+            title="Export Excel"
+          >
+            ↓ Excel
+          </button>
+          <button
+            className="btn btn-sm btn-ghost"
+            onClick={() => {
+              const ts = new Date().toISOString().slice(0, 10);
+              exportPDF(filtered, `cozy-canvas-attendees-${ts}.pdf`);
+            }}
+            title="Export PDF"
+          >
+            ↓ PDF
+          </button>
+        </div>
       </div>
 
       {openReg && (
