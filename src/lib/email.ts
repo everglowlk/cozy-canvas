@@ -7,7 +7,10 @@ type RegEmailData = Omit<IRegistration, "_id"> & { _id?: unknown };
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = process.env.SMTP_FROM || "EverGlow Events <events@everglowlk.com>";
+// Use verified Resend domain if custom domain not yet verified in Resend.
+// Once everglowlk.com is verified in Resend dashboard, change to:
+// "EverGlow Events <events@everglowlk.com>"
+const FROM = process.env.SMTP_FROM || "EverGlow Events <onboarding@resend.dev>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 function emailShell(content: string): string {
@@ -102,12 +105,14 @@ export async function sendReviewEmail(reg: RegEmailData): Promise<void> {
     <p class="p muted">Your registration ID is <span style="font-family:'Courier New',monospace;color:#00e5b0;">${reg.regId}</span>. Keep it handy in case you need to contact us.</p>
   `;
 
-  await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: FROM,
     to: reg.email,
     subject: "We've received your Cozy Canvas registration 🎨",
     html: emailShell(content),
   });
+  if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
+  console.log("[Email] Review email sent:", data?.id);
 }
 
 /**
@@ -154,7 +159,7 @@ export async function sendConfirmEmail(
     </ul>
   `;
 
-  await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: FROM,
     to: reg.email,
     subject: "You're in! Your Cozy Canvas ticket + QR 🎟️",
@@ -166,6 +171,8 @@ export async function sendConfirmEmail(
       },
     ],
   });
+  if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
+  console.log("[Email] Confirm email sent:", data?.id);
 }
 
 /**
@@ -194,10 +201,12 @@ export async function sendRejectEmail(reg: RegEmailData): Promise<void> {
     </div>
   `;
 
-  await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: FROM,
     to: reg.email,
     subject: "About your Cozy Canvas registration",
     html: emailShell(content),
   });
+  if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
+  console.log("[Email] Reject email sent:", data?.id);
 }
