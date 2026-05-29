@@ -75,7 +75,7 @@ function emailShell(content: string): string {
     <div class="footer-muted">Turning concepts into iconic events</div>
     <div class="footer-links">
       <a href="${APP_URL}/terms">Terms &amp; Conditions</a>
-      <a href="mailto:hello@everglow.events">Contact us</a>
+      <a href="mailto:events@everglowlk.com">Contact us</a>
     </div>
     <p class="muted" style="margin-top:12px;">The Cozy Canvas · in partnership with Coffee Station Café</p>
   </div>
@@ -132,12 +132,15 @@ export async function sendConfirmEmail(
 
   const ticketUrl = `${APP_URL}/ticket/${reg.regId}`;
 
+  // Strip the data:image/png;base64, prefix to get raw base64 for CID attachment
+  const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, "");
+
   const content = `
     <h1 class="h1">You're confirmed! 🎟️</h1>
     <p class="p">Hi <strong style="color:#f5fff9;">${reg.name.split(" ")[0]}</strong>, great news — your payment has been verified and your seat at The Cozy Canvas is confirmed. Show your QR code at the door.</p>
 
     <div class="qr-wrap">
-      <img src="${qrDataUrl}" width="200" height="200" alt="Your QR ticket" />
+      <img src="cid:qrcode@everglow" width="200" height="200" alt="Your QR ticket" style="border-radius:12px;border:2px solid rgba(0,229,176,0.3);" />
       <div class="ticket-code">${reg.ticket}</div>
       <p class="muted">Your unique ticket code</p>
     </div>
@@ -166,6 +169,13 @@ export async function sendConfirmEmail(
     to: reg.email,
     subject: "You're in! Your Cozy Canvas ticket + QR 🎟️",
     html: emailShell(content),
+    attachments: [
+      {
+        filename: "ticket-qr.png",
+        content: Buffer.from(base64Data, "base64"),
+        cid: "qrcode@everglow", // referenced by cid: in the img src above
+      },
+    ],
   });
 }
 
