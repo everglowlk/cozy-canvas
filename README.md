@@ -1,1 +1,1 @@
-## Cozy Canvas
+## Cozy Canvas Web App
