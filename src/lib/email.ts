@@ -7,9 +7,6 @@ type RegEmailData = Omit<IRegistration, "_id"> & { _id?: unknown };
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Use verified Resend domain if custom domain not yet verified in Resend.
-// Once everglowlk.com is verified in Resend dashboard, change to:
-// "EverGlow Events <events@everglowlk.com>"
 const FROM = process.env.SMTP_FROM || "EverGlow Events <onboarding@resend.dev>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -120,7 +117,7 @@ export async function sendReviewEmail(reg: RegEmailData): Promise<void> {
  */
 export async function sendConfirmEmail(
   reg: RegEmailData,
-  qrDataUrl: string
+  _qrDataUrl: string
 ): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
     console.log("[Email] RESEND_API_KEY not configured — skipping confirm email for", reg.email);
@@ -128,14 +125,14 @@ export async function sendConfirmEmail(
   }
 
   const ticketUrl = `${APP_URL}/ticket/${reg.regId}`;
-  const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, "");
+  const qrImageUrl = `${APP_URL}/api/qr/${reg.ticket}`;
 
   const content = `
     <h1 class="h1">You're confirmed! 🎟️</h1>
     <p class="p">Hi <strong style="color:#f5fff9;">${reg.name.split(" ")[0]}</strong>, great news — your payment has been verified and your seat at The Cozy Canvas is confirmed. Show your QR code at the door.</p>
 
     <div class="qr-wrap">
-      <img src="cid:qrcode@everglow" width="200" height="200" alt="Your QR ticket" style="border-radius:12px;border:2px solid rgba(0,229,176,0.3);" />
+      <img src="${qrImageUrl}" width="200" height="200" alt="Your QR ticket" style="border-radius:12px;border:2px solid rgba(0,229,176,0.3);" />
       <div class="ticket-code">${reg.ticket}</div>
       <p class="muted">Your unique ticket code</p>
     </div>
@@ -164,12 +161,6 @@ export async function sendConfirmEmail(
     to: reg.email,
     subject: "You're in! Your Cozy Canvas ticket + QR 🎟️",
     html: emailShell(content),
-    attachments: [
-      {
-        filename: "ticket-qr.png",
-        content: base64Data,
-      },
-    ],
   });
   if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
   console.log("[Email] Confirm email sent:", data?.id);
