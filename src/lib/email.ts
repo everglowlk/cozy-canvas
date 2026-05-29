@@ -1,21 +1,13 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import type { IRegistration } from "@/types";
 import { formatMoney } from "./utils";
 
 // Omit _id so lean() results (ObjectId) and plain objects both satisfy this type
 type RegEmailData = Omit<IRegistration, "_id"> & { _id?: unknown };
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = process.env.SMTP_FROM || "EverGlow Events <hello@everglow.events>";
+const FROM = process.env.SMTP_FROM || "EverGlow Events <events@everglowlk.com>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 function emailShell(content: string): string {
@@ -89,8 +81,8 @@ function emailShell(content: string): string {
  * Send "we've received your registration" email
  */
 export async function sendReviewEmail(reg: RegEmailData): Promise<void> {
-  if (!process.env.SMTP_HOST) {
-    console.log("[Email] SMTP not configured — skipping review email for", reg.email);
+  if (!process.env.RESEND_API_KEY) {
+    console.log("[Email] RESEND_API_KEY not configured — skipping review email for", reg.email);
     return;
   }
 
@@ -110,7 +102,7 @@ export async function sendReviewEmail(reg: RegEmailData): Promise<void> {
     <p class="p muted">Your registration ID is <span style="font-family:'Courier New',monospace;color:#00e5b0;">${reg.regId}</span>. Keep it handy in case you need to contact us.</p>
   `;
 
-  await transporter.sendMail({
+  await resend.emails.send({
     from: FROM,
     to: reg.email,
     subject: "We've received your Cozy Canvas registration 🎨",
@@ -125,14 +117,12 @@ export async function sendConfirmEmail(
   reg: RegEmailData,
   qrDataUrl: string
 ): Promise<void> {
-  if (!process.env.SMTP_HOST) {
-    console.log("[Email] SMTP not configured — skipping confirm email for", reg.email);
+  if (!process.env.RESEND_API_KEY) {
+    console.log("[Email] RESEND_API_KEY not configured — skipping confirm email for", reg.email);
     return;
   }
 
   const ticketUrl = `${APP_URL}/ticket/${reg.regId}`;
-
-  // Strip the data:image/png;base64, prefix to get raw base64 for CID attachment
   const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, "");
 
   const content = `
@@ -164,7 +154,7 @@ export async function sendConfirmEmail(
     </ul>
   `;
 
-  await transporter.sendMail({
+  await resend.emails.send({
     from: FROM,
     to: reg.email,
     subject: "You're in! Your Cozy Canvas ticket + QR 🎟️",
@@ -172,8 +162,7 @@ export async function sendConfirmEmail(
     attachments: [
       {
         filename: "ticket-qr.png",
-        content: Buffer.from(base64Data, "base64"),
-        cid: "qrcode@everglow", // referenced by cid: in the img src above
+        content: base64Data,
       },
     ],
   });
@@ -183,8 +172,8 @@ export async function sendConfirmEmail(
  * Send rejection email
  */
 export async function sendRejectEmail(reg: RegEmailData): Promise<void> {
-  if (!process.env.SMTP_HOST) {
-    console.log("[Email] SMTP not configured — skipping reject email for", reg.email);
+  if (!process.env.RESEND_API_KEY) {
+    console.log("[Email] RESEND_API_KEY not configured — skipping reject email for", reg.email);
     return;
   }
 
@@ -197,7 +186,7 @@ export async function sendRejectEmail(reg: RegEmailData): Promise<void> {
       <div class="row"><span class="row-label">Amount</span><span class="row-value">${formatMoney(reg.amount, reg.currency)}</span></div>
     </div>
 
-    <p class="p">This may be because we couldn't verify your payment slip. If you believe this is an error or have questions, please contact us at <a href="mailto:hello@everglow.events" style="color:#00e5b0;">hello@everglow.events</a> with your registration ID.</p>
+    <p class="p">This may be because we couldn't verify your payment slip. If you believe this is an error or have questions, please contact us at <a href="mailto:events@everglowlk.com" style="color:#00e5b0;">events@everglowlk.com</a> with your registration ID.</p>
     <p class="p">We'd love to see you at a future session — you're welcome to register again for an upcoming date.</p>
 
     <div style="text-align:center;margin:24px 0;">
@@ -205,7 +194,7 @@ export async function sendRejectEmail(reg: RegEmailData): Promise<void> {
     </div>
   `;
 
-  await transporter.sendMail({
+  await resend.emails.send({
     from: FROM,
     to: reg.email,
     subject: "About your Cozy Canvas registration",
