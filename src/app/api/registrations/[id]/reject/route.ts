@@ -38,10 +38,12 @@ export async function POST(
     return NextResponse.json({ error: "Registration not found" }, { status: 404 });
   }
 
-  // Send rejection email (non-blocking)
-  sendRejectEmail(updated).catch((err) => {
+  // Send rejection email
+  try {
+    await sendRejectEmail(updated);
+  } catch (err) {
     console.error("[Email] Failed to send reject email:", err);
-  });
+  }
 
   return NextResponse.json(updated);
 }

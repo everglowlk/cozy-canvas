@@ -129,10 +129,12 @@ export async function POST(request: NextRequest) {
       notes: "",
     });
 
-    // Send review email (non-blocking)
-    sendReviewEmail(registration).catch((err) => {
+    // Send review email
+    try {
+      await sendReviewEmail(registration);
+    } catch (err) {
       console.error("[Email] Failed to send review email:", err);
-    });
+    }
 
     return NextResponse.json({ regId: registration.regId }, { status: 201 });
   } catch (error) {

@@ -58,7 +58,7 @@ export async function POST(
     return NextResponse.json({ error: "Registration not found" }, { status: 404 });
   }
 
-  // Generate QR and send email (non-blocking)
+  // Generate QR and send confirmation email
   try {
     const payload = buildQRPayload(
       ticket,
@@ -67,9 +67,7 @@ export async function POST(
       updated.regId
     );
     const qrDataUrl = await generateQRDataUrl(payload);
-    sendConfirmEmail(updated, qrDataUrl).catch((err) => {
-      console.error("[Email] Failed to send confirm email:", err);
-    });
+    await sendConfirmEmail(updated, qrDataUrl);
   } catch (err) {
     console.error("[QR/Email] Failed:", err);
   }
