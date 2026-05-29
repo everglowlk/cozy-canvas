@@ -39,7 +39,7 @@ export async function GET(
     },
   });
 
-  return new NextResponse(buffer, {
+  return new NextResponse(buffer.buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "image/png",
       "Cache-Control": "public, max-age=86400",
