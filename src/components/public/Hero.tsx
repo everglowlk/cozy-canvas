@@ -1,19 +1,47 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Particles from "./Particles";
+import type { IEvent } from "@/types";
 
-const EVENT_DATA = {
-  tagline: "An unhurried evening of guided painting, café drinks & quiet company — every weekend at Coffee Station Café.",
-  schedule: "Saturday, August 2 · 5:00 PM",
-  duration: "2–3 hours",
-  seatCap: 20,
+const FALLBACK = {
+  schedule: null as string | null,
   venue: "Coffee Station Café, Colombo",
+  seatCap: 20,
   priceLocal: "LKR 3,000",
-  priceForeign: "$10 USD",
 };
 
+function formatEventDate(dateStr: string, time: string) {
+  const date = new Date(dateStr);
+  const day = date.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  return `${day} · ${time}`;
+}
+
 export default function Hero() {
+  const [event, setEvent] = useState<IEvent | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/events?status=open")
+      .then((r) => r.json())
+      .then((events: IEvent[]) => {
+        if (events.length > 0) setEvent(events[0]);
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const schedule = event ? formatEventDate(event.date, event.time) : FALLBACK.schedule;
+  const venue = event ? event.venue : FALLBACK.venue;
+  const seatCap = event ? event.capacity : FALLBACK.seatCap;
+  const priceLocal = event ? `LKR ${event.priceLKR.toLocaleString()}` : FALLBACK.priceLocal;
+  const isOpen = !!event;
+
   return (
     <header
       style={{
@@ -93,7 +121,7 @@ export default function Hero() {
             lineHeight: 1.6,
           }}
         >
-          {EVENT_DATA.tagline}
+          An unhurried evening of guided painting, café drinks &amp; quiet company — every weekend at Coffee Station Café.
         </p>
 
         <div
@@ -106,14 +134,29 @@ export default function Hero() {
             flexWrap: "wrap",
           }}
         >
-          <Link href="/register" className="btn btn-primary">
-            Reserve your seat — {EVENT_DATA.priceLocal}
-          </Link>
+          {isOpen ? (
+            <Link href="/register" className="btn btn-primary">
+              Reserve your seat — {priceLocal}
+            </Link>
+          ) : (
+            <span
+              className="btn"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                color: "var(--muted)",
+                border: "1px solid var(--border)",
+                cursor: "default",
+              }}
+            >
+              Registrations closed
+            </span>
+          )}
           <a href="#experience" className="btn btn-ghost">
             See the experience
           </a>
         </div>
 
+        {/* Event details strip */}
         <div
           className="fade-up"
           style={{
@@ -125,28 +168,96 @@ export default function Hero() {
             marginTop: "3rem",
           }}
         >
-          {[
-            ["📅", EVENT_DATA.schedule],
-            ["⏳", EVENT_DATA.duration],
-            ["🎨", `Only ${EVENT_DATA.seatCap} easels`],
-            ["📍", EVENT_DATA.venue],
-          ].map(([icon, label], i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.6rem",
-                fontSize: "0.82rem",
-                color: "var(--muted)",
-              }}
-            >
-              <span style={{ fontSize: "1rem" }}>{icon}</span>
-              <span>{label}</span>
-            </div>
-          ))}
+          {loaded ? (
+            <>
+              {schedule && (
+                <EventMeta icon="📅" label={schedule} highlight={isOpen} />
+              )}
+              {!schedule && !isOpen && (
+                <EventMeta icon="📅" label="Next date coming soon" />
+              )}
+              <EventMeta icon="⏳" label="2–3 hours" />
+              <EventMeta icon="🎨" label={`Only ${seatCap} easels`} />
+              <EventMeta icon="📍" label={venue} />
+            </>
+          ) : (
+            /* skeleton while loading */
+            [130, 160, 100, 180].map((w) => (
+              <div
+                key={w}
+                style={{
+                  height: 16,
+                  width: w,
+                  borderRadius: 8,
+                  background: "rgba(255,255,255,0.06)",
+                  animation: "pulse 1.4s ease-in-out infinite",
+                }}
+              />
+            ))
+          )}
         </div>
+
+        {/* Next event badge */}
+        {isOpen && event && (
+          <div
+            className="fade-up"
+            style={{
+              animationDelay: "0.85s",
+              marginTop: "1.6rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              background: "rgba(var(--accent-rgb),0.1)",
+              border: "1px solid rgba(var(--accent-rgb),0.25)",
+              borderRadius: 100,
+              padding: "0.35rem 1rem",
+              fontSize: "0.76rem",
+              color: "var(--accent)",
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+            }}
+          >
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: "var(--accent)",
+                display: "inline-block",
+                boxShadow: "0 0 8px rgba(var(--accent-rgb),0.8)",
+                animation: "pulse 1.8s ease-in-out infinite",
+              }}
+            />
+            {event.title}
+          </div>
+        )}
       </div>
     </header>
+  );
+}
+
+function EventMeta({
+  icon,
+  label,
+  highlight,
+}: {
+  icon: string;
+  label: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.6rem",
+        fontSize: "0.82rem",
+        color: highlight ? "var(--white)" : "var(--muted)",
+        fontWeight: highlight ? 600 : 400,
+      }}
+    >
+      <span style={{ fontSize: "1rem" }}>{icon}</span>
+      <span>{label}</span>
+    </div>
   );
 }
