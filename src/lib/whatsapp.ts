@@ -107,7 +107,7 @@ async function sendTemplate(
       type: "template",
       template: {
         name: templateName,
-        language: { code: "en" },
+        language: { code: "en_US" },
         components,
       },
     }),
@@ -147,16 +147,14 @@ export async function sendWhatsAppReview(
 export async function sendWhatsAppConfirm(
   phone: string,
   name: string,
-  regId: string,
-  ticket: string
+  _regId: string,
+  _ticket: string
 ): Promise<void> {
   await sendTemplate(phone, "registration_confirmed", [
     {
       type: "body",
       parameters: [
         { type: "text", text: name },
-        { type: "text", text: regId },
-        { type: "text", text: ticket },
       ],
     },
   ]);
