@@ -4,6 +4,7 @@ import connectDB from "@/lib/mongodb";
 import Registration from "@/models/Registration";
 import { buildQRPayload, generateQRDataUrl } from "@/lib/qr";
 import TicketCard from "@/components/ui/TicketCard";
+import TicketActions from "@/components/ui/TicketActions";
 import Particles from "@/components/public/Particles";
 import type { IRegistration } from "@/types";
 
@@ -198,26 +199,8 @@ export default async function TicketPage({ params }: TicketPageProps) {
           <TicketCard registration={reg} qrDataUrl={qrDataUrl} />
         </div>
 
-        <div
-          className="fade-up no-print"
-          style={{
-            animationDelay: "0.4s",
-            display: "flex",
-            gap: "0.8rem",
-            justifyContent: "center",
-            flexWrap: "wrap",
-            marginBottom: "2.4rem",
-          }}
-        >
-          <button
-            className="btn btn-primary"
-            onClick={() => window.print()}
-          >
-            ⬇ Save / print ticket
-          </button>
-          <Link href="/" className="btn btn-ghost">
-            Back to event
-          </Link>
+        <div className="fade-up" style={{ animationDelay: "0.4s" }}>
+          <TicketActions />
         </div>
 
         <div
