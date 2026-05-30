@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import connectDB from "@/lib/mongodb";
 import Registration from "@/models/Registration";
 import { sendRejectEmail } from "@/lib/email";
+import { sendWhatsAppReject } from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
 
@@ -38,12 +39,15 @@ export async function POST(
     return NextResponse.json({ error: "Registration not found" }, { status: 404 });
   }
 
-  // Send rejection email
-  try {
-    await sendRejectEmail(updated);
-  } catch (err) {
-    console.error("[Email] Failed to send reject email:", err);
-  }
+  // Send rejection email + WhatsApp (in parallel)
+  await Promise.allSettled([
+    sendRejectEmail(updated).catch((err) =>
+      console.error("[Email] Failed to send reject email:", err)
+    ),
+    sendWhatsAppReject(updated.phone, updated.name, updated.regId).catch((err) =>
+      console.error("[WhatsApp] Failed to send reject message:", err)
+    ),
+  ]);
 
   return NextResponse.json(updated);
 }

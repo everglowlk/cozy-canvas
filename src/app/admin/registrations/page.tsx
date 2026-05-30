@@ -147,87 +147,233 @@ function StatCard({
   );
 }
 
-/* ── Receipt view ── */
-function ReceiptView({ reg }: { reg: IRegistration }) {
-  if (reg.receiptUrl && reg.receiptUrl !== "/placeholder-receipt.jpg") {
+/* ── Receipt lightbox ── */
+function ReceiptLightbox({ url, onClose }: { url: string; onClose: () => void }) {
+  const isPdf = url.toLowerCase().includes(".pdf") || url.toLowerCase().includes("/raw/");
+
+  // Close on Escape
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 120,
+        background: "rgba(0,0,0,0.88)",
+        backdropFilter: "blur(6px)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1.5rem",
+        animation: "fadeIn 0.15s",
+      }}
+    >
+      {/* toolbar */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.8rem",
+          marginBottom: "1rem",
+          width: "100%",
+          maxWidth: 860,
+          justifyContent: "flex-end",
+        }}
+      >
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-sm btn-ghost"
+          onClick={(e) => e.stopPropagation()}
+        >
+          Open original ↗
+        </a>
+        <button
+          onClick={onClose}
+          style={{
+            background: "rgba(255,255,255,0.08)",
+            border: "none",
+            color: "var(--white)",
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            fontSize: "1rem",
+            cursor: "pointer",
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* content */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: 860,
+          width: "100%",
+          maxHeight: "calc(100dvh - 8rem)",
+          overflowY: "auto",
+          borderRadius: "var(--r)",
+          background: "var(--panel)",
+          border: "1px solid var(--border-2)",
+        }}
+      >
+        {isPdf ? (
+          <iframe
+            src={url}
+            title="Payment slip"
+            style={{ width: "100%", height: "80dvh", border: "none", borderRadius: "var(--r)" }}
+          />
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={url}
+            alt="Payment slip"
+            style={{ width: "100%", height: "auto", display: "block", borderRadius: "var(--r)" }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Receipt thumbnail ── */
+function ReceiptThumb({ reg, onClick }: { reg: IRegistration; onClick: () => void }) {
+  const hasReceipt = reg.receiptUrl && reg.receiptUrl !== "/placeholder-receipt.jpg";
+  const isPdf = hasReceipt && (reg.receiptUrl.toLowerCase().includes(".pdf") || reg.receiptUrl.toLowerCase().includes("/raw/"));
+
+  if (!hasReceipt) {
+    // Stylised placeholder slip (no real upload)
     return (
+      <div
+        style={{
+          width: "100%",
+          aspectRatio: "3/4",
+          borderRadius: "var(--r-s)",
+          background: "repeating-linear-gradient(0deg,#f7f9f8 0 28px,#eef2f0 28px 29px)",
+          border: "1px solid var(--border)",
+          padding: "1.4rem",
+          color: "#33433d",
+          fontFamily: "var(--font-m)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ fontWeight: 700, fontSize: "0.8rem", letterSpacing: "0.06em", marginBottom: "0.8rem", color: "#0d2b21" }}>
+          {reg.payMethod === "Wise transfer" ? "WISE" : reg.payMethod === "Card (link)" ? "CARD" : "COMMERCIAL BANK"}
+        </div>
+        {[
+          ["AMOUNT", formatMoney(reg.amount, reg.currency)],
+          ["REF", reg.payRef],
+          ["TO", "EverGlow Events"],
+          ["DATE", new Date(reg.createdAt).toLocaleDateString()],
+          ["STATUS", "SUCCESS ✓"],
+        ].map(([k, v], i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.74rem", padding: "0.3rem 0", borderBottom: "1px dashed #cdd8d3" }}>
+            <span style={{ color: "#7a8a83" }}>{k}</span>
+            <span style={{ fontWeight: 600 }}>{v}</span>
+          </div>
+        ))}
+        <div style={{ position: "absolute", bottom: 10, right: 12, fontSize: "0.6rem", color: "#9aa8a2", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          payment slip
+        </div>
+      </div>
+    );
+  }
+
+  if (isPdf) {
+    return (
+      <button
+        onClick={onClick}
+        style={{
+          width: "100%",
+          aspectRatio: "3/4",
+          borderRadius: "var(--r-s)",
+          border: "1px solid var(--border-2)",
+          background: "rgba(var(--accent-rgb),0.05)",
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "0.7rem",
+          color: "var(--muted)",
+          transition: "background 0.2s, border-color 0.2s",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "rgba(var(--accent-rgb),0.1)";
+          (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "rgba(var(--accent-rgb),0.05)";
+          (e.currentTarget as HTMLElement).style.borderColor = "var(--border-2)";
+        }}
+      >
+        <span style={{ fontSize: "2.5rem" }}>📄</span>
+        <span style={{ fontSize: "0.78rem", color: "var(--accent)" }}>Click to view PDF</span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: "100%",
+        padding: 0,
+        border: "none",
+        background: "transparent",
+        cursor: "zoom-in",
+        borderRadius: "var(--r-s)",
+        overflow: "hidden",
+        display: "block",
+        position: "relative",
+      }}
+    >
       <Image
         src={reg.receiptUrl}
         alt="Payment slip"
         width={300}
         height={400}
-        style={{ width: "100%", height: "auto", borderRadius: "var(--r-s)", display: "block" }}
+        style={{ width: "100%", height: "auto", display: "block", borderRadius: "var(--r-s)" }}
         unoptimized
       />
-    );
-  }
-  // Stylised placeholder slip
-  return (
-    <div
-      style={{
-        width: "100%",
-        aspectRatio: "3/4",
-        borderRadius: "var(--r-s)",
-        background:
-          "repeating-linear-gradient(0deg,#f7f9f8 0 28px,#eef2f0 28px 29px)",
-        border: "1px solid var(--border)",
-        padding: "1.4rem",
-        color: "#33433d",
-        fontFamily: "var(--font-m)",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: "0.8rem",
-          letterSpacing: "0.06em",
-          marginBottom: "0.8rem",
-          color: "#0d2b21",
-        }}
-      >
-        {reg.payMethod === "Wise transfer"
-          ? "WISE"
-          : reg.payMethod === "Card (link)"
-          ? "CARD"
-          : "COMMERCIAL BANK"}
-      </div>
-      {[
-        ["AMOUNT", formatMoney(reg.amount, reg.currency)],
-        ["REF", reg.payRef],
-        ["TO", "EverGlow Events"],
-        ["DATE", new Date(reg.createdAt).toLocaleDateString()],
-        ["STATUS", "SUCCESS ✓"],
-      ].map(([k, v], i) => (
-        <div
-          key={i}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: "0.74rem",
-            padding: "0.3rem 0",
-            borderBottom: "1px dashed #cdd8d3",
-          }}
-        >
-          <span style={{ color: "#7a8a83" }}>{k}</span>
-          <span style={{ fontWeight: 600 }}>{v}</span>
-        </div>
-      ))}
       <div
         style={{
           position: "absolute",
-          bottom: 10,
-          right: 12,
-          fontSize: "0.6rem",
-          color: "#9aa8a2",
-          textTransform: "uppercase",
-          letterSpacing: "0.1em",
+          inset: 0,
+          background: "rgba(0,0,0,0)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: "var(--r-s)",
+          transition: "background 0.2s",
+          fontSize: "0.8rem",
+          color: "transparent",
+          fontWeight: 600,
+          letterSpacing: "0.08em",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.45)";
+          (e.currentTarget as HTMLElement).style.color = "var(--white)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0)";
+          (e.currentTarget as HTMLElement).style.color = "transparent";
         }}
       >
-        payment slip
+        View full size ↗
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -246,6 +392,7 @@ function DetailDrawer({
   const [notes, setNotes] = useState(initialReg.notes || "");
   const [busy, setBusy] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const isOrganizer = session?.user.role === "Organizer";
 
@@ -482,20 +629,37 @@ function DetailDrawer({
           </div>
 
           {/* Payment slip */}
-          <h3
-            style={{
-              fontSize: "0.66rem",
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: "var(--accent)",
-              marginBottom: "1rem",
-            }}
-          >
-            Payment slip
-          </h3>
-          <div style={{ maxWidth: 300, marginBottom: "1.8rem" }}>
-            <ReceiptView reg={reg} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+            <h3
+              style={{
+                fontSize: "0.66rem",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: "var(--accent)",
+                margin: 0,
+              }}
+            >
+              Payment slip
+            </h3>
+            {reg.receiptUrl && reg.receiptUrl !== "/placeholder-receipt.jpg" && (
+              <a
+                href={reg.receiptUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-sm btn-ghost"
+                style={{ fontSize: "0.7rem" }}
+              >
+                Open original ↗
+              </a>
+            )}
           </div>
+          <div style={{ maxWidth: 300, marginBottom: "1.8rem" }}>
+            <ReceiptThumb reg={reg} onClick={() => setLightboxOpen(true)} />
+          </div>
+
+          {lightboxOpen && reg.receiptUrl && reg.receiptUrl !== "/placeholder-receipt.jpg" && (
+            <ReceiptLightbox url={reg.receiptUrl} onClose={() => setLightboxOpen(false)} />
+          )}
 
           {/* QR if approved */}
           {reg.status === "approved" && reg.ticket && (

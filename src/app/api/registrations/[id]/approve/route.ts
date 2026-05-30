@@ -6,6 +6,7 @@ import Registration from "@/models/Registration";
 import { generateTicketCode } from "@/lib/utils";
 import { buildQRPayload, generateQRDataUrl } from "@/lib/qr";
 import { sendConfirmEmail } from "@/lib/email";
+import { sendWhatsAppConfirm } from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
 
@@ -58,16 +59,18 @@ export async function POST(
     return NextResponse.json({ error: "Registration not found" }, { status: 404 });
   }
 
-  // Generate QR and send confirmation email
+  // Generate QR, send confirmation email + WhatsApp (in parallel)
   try {
-    const payload = buildQRPayload(
-      ticket,
-      updated.name,
-      updated.guests,
-      updated.regId
-    );
+    const payload = buildQRPayload(ticket, updated.name, updated.guests, updated.regId);
     const qrDataUrl = await generateQRDataUrl(payload);
-    await sendConfirmEmail(updated, qrDataUrl);
+    await Promise.allSettled([
+      sendConfirmEmail(updated, qrDataUrl).catch((err) =>
+        console.error("[Email] Failed to send confirm email:", err)
+      ),
+      sendWhatsAppConfirm(updated.phone, updated.name, updated.regId, ticket).catch((err) =>
+        console.error("[WhatsApp] Failed to send confirm message:", err)
+      ),
+    ]);
   } catch (err) {
     console.error("[QR/Email] Failed:", err);
   }

@@ -6,6 +6,7 @@ import Registration from "@/models/Registration";
 import Event from "@/models/Event";
 import { generateRegId } from "@/lib/utils";
 import { sendReviewEmail } from "@/lib/email";
+import { sendWhatsAppReview } from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
 
@@ -148,12 +149,15 @@ export async function POST(request: NextRequest) {
       notes: "",
     });
 
-    // Send review email
-    try {
-      await sendReviewEmail(registration);
-    } catch (err) {
-      console.error("[Email] Failed to send review email:", err);
-    }
+    // Send review email + WhatsApp (in parallel, non-blocking)
+    await Promise.allSettled([
+      sendReviewEmail(registration).catch((err) =>
+        console.error("[Email] Failed to send review email:", err)
+      ),
+      sendWhatsAppReview(registration.phone, registration.name, registration.regId).catch((err) =>
+        console.error("[WhatsApp] Failed to send review message:", err)
+      ),
+    ]);
 
     return NextResponse.json({ regId: registration.regId }, { status: 201 });
   } catch (error) {
