@@ -54,6 +54,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   const tabs = [
     { id: "registrations", label: "Registrations", icon: "📋", href: "/admin/registrations", roles: ["Organizer", "Door staff"] },
     { id: "checkin", label: "Door check-in", icon: "📷", href: "/admin/checkin", roles: ["Organizer", "Door staff"] },
+    { id: "events", label: "Events", icon: "🗓️", href: "/admin/events", roles: ["Organizer"] },
     { id: "team", label: "Team", icon: "👥", href: "/admin/team", roles: ["Organizer"] },
   ].filter((t) => t.roles.includes(session.user.role));
 

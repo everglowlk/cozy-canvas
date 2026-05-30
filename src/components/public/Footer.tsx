@@ -101,7 +101,7 @@ export default function Footer() {
             Reserve a seat
           </Link>
           <a
-            href="mailto:hello@everglow.events"
+            href="mailto:events@everglowlk.com"
             style={{
               color: "var(--muted)",
               fontSize: "0.76rem",

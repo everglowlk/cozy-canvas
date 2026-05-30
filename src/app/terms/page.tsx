@@ -241,10 +241,10 @@ export default function TermsPage() {
           >
             Questions about these terms? Email{" "}
             <a
-              href="mailto:hello@everglow.events"
+              href="mailto:events@everglowlk.com"
               style={{ color: "var(--accent)" }}
             >
-              hello@everglow.events
+              events@everglowlk.com
             </a>
             . EverGlow Events × Coffee Station Café.
           </p>

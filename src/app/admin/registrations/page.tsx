@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import StatusPill from "@/components/ui/StatusPill";
-import type { IRegistration, StatsResult } from "@/types";
+import type { IRegistration, IEvent, StatsResult } from "@/types";
 import { formatMoney, timeAgo, getInitials } from "@/lib/utils";
 import Image from "next/image";
 
@@ -699,19 +699,28 @@ export default function RegistrationsPage() {
     total: 0, pending: 0, approved: 0, rejected: 0,
     revenueLKR: 0, seats: 0, checkedIn: 0, seatCap: 20,
   });
+  const [events, setEvents] = useState<IEvent[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState("all");
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    const res = await fetch("/api/registrations");
+  const fetchData = useCallback(async (eventId = selectedEvent) => {
+    const params = new URLSearchParams();
+    if (eventId !== "all") params.set("eventId", eventId);
+    const res = await fetch(`/api/registrations?${params}`);
     if (res.ok) {
       const data = await res.json();
       setRegistrations(data.registrations);
       setStats(data.stats);
     }
     setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEvent]);
+
+  useEffect(() => {
+    fetch("/api/events").then((r) => r.json()).then(setEvents).catch(() => {});
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -811,6 +820,31 @@ export default function RegistrationsPage() {
           />
         </div>
       </div>
+
+      {/* Event selector */}
+      {events.length > 0 && (
+        <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.8rem" }}>
+          <span style={{ fontSize: "0.76rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>Event</span>
+          <select
+            className="select"
+            value={selectedEvent}
+            onChange={(e) => {
+              setSelectedEvent(e.target.value);
+              setLoading(true);
+              fetchData(e.target.value);
+            }}
+            style={{ maxWidth: 380 }}
+          >
+            <option value="all">All events</option>
+            {events.map((ev) => (
+              <option key={ev.eventId} value={ev.eventId}>
+                {ev.title} · {new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                {ev.status === "open" ? " ✦ Open" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Search + filters */}
       <div

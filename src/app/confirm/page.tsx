@@ -268,6 +268,11 @@ export default function ConfirmPage({ searchParams }: ConfirmPageProps) {
               flexWrap: "wrap",
             }}
           >
+            {regId && (
+              <Link href={`/status?id=${regId}`} className="btn btn-primary">
+                Check my status →
+              </Link>
+            )}
             <Link href="/" className="btn btn-ghost">
               Back to event
             </Link>

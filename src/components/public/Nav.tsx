@@ -81,6 +81,25 @@ export default function Nav() {
             {l}
           </a>
         ))}
+        <Link
+          href="/status"
+          style={{
+            fontSize: "0.72rem",
+            fontWeight: 500,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "var(--muted)",
+            transition: "color 0.2s",
+          }}
+          onMouseEnter={(e) =>
+            ((e.currentTarget as HTMLElement).style.color = "var(--accent)")
+          }
+          onMouseLeave={(e) =>
+            ((e.currentTarget as HTMLElement).style.color = "var(--muted)")
+          }
+        >
+          My status
+        </Link>
         <Link href="/register" className="btn btn-primary btn-sm">
           Reserve a seat
         </Link>

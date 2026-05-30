@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import connectDB from "@/lib/mongodb";
 import Registration from "@/models/Registration";
+import Event from "@/models/Event";
 import { generateRegId } from "@/lib/utils";
 import { sendReviewEmail } from "@/lib/email";
 
@@ -20,11 +21,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
   const q = searchParams.get("q");
+  const eventId = searchParams.get("eventId");
 
   const filter: Record<string, unknown> = {};
-  if (status && status !== "all") {
-    filter.status = status;
-  }
+  if (status && status !== "all") filter.status = status;
+  if (eventId && eventId !== "all") filter.eventId = eventId;
 
   if (q && q.trim()) {
     const regex = new RegExp(q.trim(), "i");
@@ -42,8 +43,17 @@ export async function GET(request: NextRequest) {
     .sort({ createdAt: -1 })
     .lean();
 
-  // Calculate stats
-  const all = await Registration.find({}).lean();
+  // Calculate stats for the same event filter
+  const statsFilter: Record<string, unknown> = {};
+  if (eventId && eventId !== "all") statsFilter.eventId = eventId;
+  const all = await Registration.find(statsFilter).lean();
+
+  // Fetch event capacity for seatCap
+  let seatCap = 20;
+  if (eventId && eventId !== "all") {
+    const ev = await Event.findOne({ eventId }).lean();
+    if (ev) seatCap = ev.capacity;
+  }
   const approved = all.filter((r) => r.status === "approved");
   const pending = all.filter((r) => r.status === "pending");
   const rejected = all.filter((r) => r.status === "rejected");
@@ -64,7 +74,7 @@ export async function GET(request: NextRequest) {
     revenueLKR,
     seats,
     checkedIn,
-    seatCap: 20,
+    seatCap,
   };
 
   return NextResponse.json({ registrations, stats });
@@ -91,15 +101,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
 
-    // Validate NIC for locals
-    if (body.country === "local" && !body.nic?.trim()) {
+    // Validate NIC/Passport
+    if (!body.nic?.trim()) {
       return NextResponse.json(
-        { error: "NIC is required for local registrations" },
+        { error: body.country === "local" ? "NIC is required for local registrations" : "Passport number is required for foreign visitors" },
         { status: 400 }
       );
     }
 
     await connectDB();
+
+    // Validate event exists and is open
+    if (body.eventId) {
+      const event = await Event.findOne({ eventId: body.eventId, status: "open" });
+      if (!event) {
+        return NextResponse.json({ error: "This event is no longer open for registrations" }, { status: 400 });
+      }
+    }
 
     // Generate unique regId
     let regId: string;
@@ -111,11 +129,12 @@ export async function POST(request: NextRequest) {
     } while (await Registration.findOne({ regId }));
 
     const registration = await Registration.create({
+      eventId: body.eventId || "LEGACY",
       regId,
       name: body.name.trim(),
       email: body.email.trim().toLowerCase(),
       phone: body.phone.trim(),
-      nic: body.country === "local" ? (body.nic || "").trim() : "—",
+      nic: body.nic?.trim() || "—",
       country: body.country,
       guests: Number(body.guests),
       tier: "Painter",

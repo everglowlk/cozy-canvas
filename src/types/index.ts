@@ -1,5 +1,20 @@
+export interface IEvent {
+  _id?: string;
+  eventId: string;
+  title: string;
+  date: string;
+  time: string;
+  venue: string;
+  capacity: number;
+  priceLKR: number;
+  priceUSD: number;
+  status: "draft" | "open" | "closed" | "past";
+  createdAt: string;
+}
+
 export interface IRegistration {
   _id?: string;
+  eventId: string;
   regId: string;
   name: string;
   email: string;

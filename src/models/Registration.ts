@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IRegistrationDoc extends Document {
+  eventId: string;
   regId: string;
   name: string;
   email: string;
@@ -27,6 +28,7 @@ export interface IRegistrationDoc extends Document {
 
 const RegistrationSchema = new Schema<IRegistrationDoc>(
   {
+    eventId: { type: String, default: "LEGACY" },
     regId: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     email: { type: String, required: true },
